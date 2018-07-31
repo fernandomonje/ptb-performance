@@ -4,13 +4,15 @@ import BaseHTTPServer
 import json
 import time
 import datetime
-import cgi
+import re
 
 # Global Variables Denifitions
 # Global Variables Settings
 
 HOST_NAME = '10.200.120.8'
 PORT_NUMBER = 9995
+API_VERSION = 'v1'
+BASE_URL = '/api/v1'
 
 class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     server_version = 'Portability Performance Server/1.0'
@@ -31,7 +33,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       return
     def do_GET(s):
       """Response for a GET request."""
-      if s.path == '/get':
+      if s.path == BASE_URL + '/data':
         outfile = open('./dummy.file', 'r')
         s.send_response(200)
         s._setCORSHeaders(s, "GET", "application/octet-stream")
@@ -44,7 +46,9 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_POST(s):
       """ Response for a POST request."""
       spent_time = 0
-      if s.path == '/upload/':
+      spid_regex = re.compile(BASE_URL + '/carrier/[0-9]{4}/measurement')
+      print spid_regex.findall(s.path)
+      if s.path == BASE_URL + '/data/upload':
         start_request_time = datetime.datetime.now()
         content_length = int(s.headers['Content-Length'])
         file_content = s.rfile.read(content_length)
@@ -52,27 +56,25 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s._setCORSHeaders(s, "POST", "text/html")
         end_request_time = datetime.datetime.now()
         spent_time = (end_request_time - start_request_time).total_seconds()* 1000
-      elif s.path == '/commit_data/':
+      elif spid_regex.search(s.path):
+        url_spid = s.path.split('/')[4]
         content_length = int(s.headers['Content-Length'])
         file_content = s.rfile.read(content_length)
         json_loaded = json.loads(file_content)
-        print "SPID Recebido: %s" % (json_loaded['spid'])
-        print "Upload Bandwidth Recebido: %s" % (json_loaded['upload_bandwidth'])
-        print "Download Bandwidth Recebido: %s" % (json_loaded['download_bandwidth'])
-        print "Ping Response Time Recebido: %s" % (json_loaded['ping_response_time'])
-        #print json_loaded
-        s.send_response(200)
-        s._setCORSHeaders(s, "POST", "text/html")
+        if json_loaded['spid'] != url_spid:
+          s.send_response(401, 'Invalid SPID.')
+          s.end_headers()
+        else:
+          print "SPID Recebido: %s" % (json_loaded['spid'])
+          print "Upload Bandwidth Recebido: %s" % (json_loaded['upload_bandwidth'])
+          print "Download Bandwidth Recebido: %s" % (json_loaded['download_bandwidth'])
+          print "Ping Response Time Recebido: %s" % (json_loaded['ping_response_time'])
+          s.send_response(200)
+          s._setCORSHeaders(s, "POST", "text/html")
       else:
         s.send_response(400, 'Invalid Path.')
         s.end_headers()
       print "Request Total Time: %dms" % (spent_time,)
-      return
-    def do_PUT(s):
-      if s.path == '/put':
-        s.send_response(200)
-        s._setCORSHeaders(s, "PUT")
-        s.wfile.write("{ 'TESTE JSON' : { 'TESTE2': 'TESTE_OK', 'URL' : \'" + s.path + "\'} }")
       return
 
 if __name__ == '__main__':
