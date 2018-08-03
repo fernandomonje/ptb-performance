@@ -5,6 +5,7 @@ import json
 import time
 import datetime
 import re
+import StringIO
 
 # Global Variables Denifitions
 # Global Variables Settings
@@ -34,8 +35,8 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_GET(s):
       """Response for a GET request."""
       if s.path == BASE_URL + '/data':
-        outfile = open('./dummy.file', 'rb')
-        time.sleep(5)
+        outfile = open('./dummy.file', 'r')
+        #time.sleep(5)
         outfile.seek(0,2)
         file_size = int(outfile.tell())
         s.send_response(200)
@@ -52,12 +53,13 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       """ Response for a POST request."""
       spent_time = 0
       spid_regex = re.compile(BASE_URL + '/carrier/[0-9]{4}/measurement')
-      print spid_regex.findall(s.path)
       if s.path == BASE_URL + '/data/upload':
         start_request_time = datetime.datetime.now()
         content_length = int(s.headers['Content-Length'])
-        file_content = s.rfile.read(content_length)
-        time.sleep(5)
+        file_content = StringIO.StringIO()
+        file_content.write(s.rfile.read(content_length))
+        file_content.seek(0,2)
+        file_content.close()
         s.send_response(200)
         s._setCORSHeaders(s, "POST", "text/html")
         end_request_time = datetime.datetime.now()
