@@ -3,7 +3,7 @@ import time
 import requests
 import json
 import time
-import datetime
+from datetime import datetime
 import re
 import pyping
 import StringIO
@@ -36,7 +36,7 @@ class Environment:
     return self.measure_interval
 
 def get_seconds(datetime):
-  time = datetime.split(' ')[3].split(':')
+  time = datetime.split(' ')[4].split(':')
   time_hours = int(time[0])
   time_minutes = int(time[1])
   time_seconds = int(time[2])
@@ -50,24 +50,28 @@ def download_measure(properties):
   return_data = {}
   url = 'http://' + properties['server'] + ':' + properties['port'] + '/api/' + properties['api_version'] + '/data'
   print url
-  current_seconds = get_seconds(time.asctime())
+  #current_seconds = get_seconds(time.asctime())
+  current_seconds = int(datetime.now().strftime("%S"))
   req = requests.get(url)
   file = StringIO.StringIO() 
   file.write(req.content)
   file_size = int(req.headers['Content-Length'])/1000
-  dl_seconds = get_seconds(time.asctime())
+  #dl_seconds = get_seconds(time.asctime())
+  dl_seconds = int(datetime.now().strftime("%S"))
   time_difference = dl_seconds - current_seconds
   return_data = {'measure': round(file_size / time_difference), 'file' : file}
   return return_data
 
 def upload_measure(properties, dummy_file):
   return_data = {}
-  current_seconds = get_seconds(time.asctime())
+  #current_seconds = get_seconds(time.asctime())
+  current_seconds = int(datetime.now().strftime("%S"))
   post_url = 'http://' + properties['server'] + ':' + properties['port'] + '/api/' + properties['api_version'] + '/data/upload'
   request = requests.post(post_url, files=dummy_file)
   dummy_file.seek(0,2)
   file_size = int(dummy_file.tell()) / 1000
-  dl_seconds = get_seconds(time.asctime())
+  #dl_seconds = get_seconds(time.asctime())
+  dl_seconds = int(datetime.now().strftime("%S"))
   time_difference = dl_seconds - current_seconds
   return_data = {'measure': round(file_size / time_difference)}
   dummy_file.close()

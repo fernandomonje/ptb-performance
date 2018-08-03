@@ -34,9 +34,14 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def do_GET(s):
       """Response for a GET request."""
       if s.path == BASE_URL + '/data':
-        outfile = open('./dummy.file', 'r')
+        outfile = open('./dummy.file', 'rb')
+        time.sleep(5)
+        outfile.seek(0,2)
+        file_size = int(outfile.tell())
         s.send_response(200)
+        s.send_header("Content-Length", file_size)
         s._setCORSHeaders(s, "GET", "application/octet-stream")
+        outfile.seek(0,0)
         s.wfile.write(outfile.read())
         outfile.close()
       else:
@@ -52,6 +57,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         start_request_time = datetime.datetime.now()
         content_length = int(s.headers['Content-Length'])
         file_content = s.rfile.read(content_length)
+        time.sleep(5)
         s.send_response(200)
         s._setCORSHeaders(s, "POST", "text/html")
         end_request_time = datetime.datetime.now()
