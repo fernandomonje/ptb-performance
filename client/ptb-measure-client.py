@@ -50,7 +50,6 @@ def download_measure(properties):
   return_data = {}
   url = 'http://' + properties['server'] + ':' + properties['port'] + '/api/' + properties['api_version'] + '/data'
   print url
-  #current_seconds = get_seconds(time.asctime())
   current_seconds = int(datetime.now().strftime("%S"))
   req = requests.get(url)
   file = StringIO.StringIO() 
@@ -64,7 +63,6 @@ def download_measure(properties):
 
 def upload_measure(properties, dummy_file):
   return_data = {}
-  #current_seconds = get_seconds(time.asctime())
   current_seconds = int(datetime.now().strftime("%S"))
   post_url = 'http://' + properties['server'] + ':' + properties['port'] + '/api/' + properties['api_version'] + '/data/upload'
   request = requests.post(post_url, files=dummy_file)
@@ -90,5 +88,10 @@ if __name__ == '__main__':
   print download['measure']
   upload = upload_measure(properties, download['file'])
   print upload['measure']
-
-
+  ping = pyping.ping('google.com')
+  if ping.ret_code != 0:
+    print 'Ping Test Failed.'
+  else:
+    print ping.avg_rtt
+    lost_rate = float(ping.packet_lost) / 3 * 100.0
+    print lost_rate
