@@ -51,7 +51,6 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       return
     def do_POST(s):
       """ Response for a POST request."""
-      spent_time = 0
       spid_regex = re.compile(BASE_URL + '/carrier/[0-9]{4}/measurement')
       if s.path == BASE_URL + '/data/upload':
         start_request_time = datetime.datetime.now()
@@ -63,7 +62,6 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.send_response(200)
         s._setCORSHeaders(s, "POST", "text/html")
         end_request_time = datetime.datetime.now()
-        spent_time = (end_request_time - start_request_time).seconds * 1000
       elif spid_regex.search(s.path):
         url_spid = s.path.split('/')[4]
         content_length = int(s.headers['Content-Length'])
@@ -83,7 +81,6 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       else:
         s.send_response(400, 'Invalid Path.')
         s.end_headers()
-      print "Request Total Time: %dms" % (spent_time,)
       return
 
 if __name__ == '__main__':
