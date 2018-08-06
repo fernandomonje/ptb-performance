@@ -63,7 +63,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.send_response(200)
         s._setCORSHeaders(s, "POST", "text/html")
         end_request_time = datetime.datetime.now()
-        spent_time = (end_request_time - start_request_time).total_seconds()* 1000
+        spent_time = (end_request_time - start_request_time).seconds * 1000
       elif spid_regex.search(s.path):
         url_spid = s.path.split('/')[4]
         content_length = int(s.headers['Content-Length'])
@@ -77,6 +77,7 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
           print "Upload Bandwidth Recebido: %s" % (json_loaded['upload_bandwidth'])
           print "Download Bandwidth Recebido: %s" % (json_loaded['download_bandwidth'])
           print "Ping Response Time Recebido: %s" % (json_loaded['ping_response_time'])
+          print "Ping Packet Lost Avg: %s" % (json_loaded['ping_packet_loss'])
           s.send_response(200)
           s._setCORSHeaders(s, "POST", "text/html")
       else:
