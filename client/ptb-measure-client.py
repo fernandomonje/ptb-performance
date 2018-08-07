@@ -14,7 +14,7 @@ import threading
 import signal
 import os
 
-urllib3.disable_warnings()
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class Environment:
   def __init__(self, properties):
@@ -67,7 +67,7 @@ def download_measure(env):
   try:
     req = requests.get(url, verify=False, timeout=5)
     if req.status_code != 200:
-      daemonLogHandler.error('[' + t.name + '] - Received wrong http status [' + req.status_code + ']')
+      daemonLogHandler.error('[' + t.name + '] - Received wrong http status [' + str(req.status_code) + ']')
       daemonLogHandler.error('[' + t.name + '] - Download Method Failed.')
       return_data = {'measure': 0}
     else:
@@ -96,7 +96,7 @@ def upload_measure(env, dummy_file):
   try:
     req = requests.post(post_url, data=dummy_file, headers={"Content-Type": "application/octet-stream", "Content-Length" : str(file_size)}, verify=False, timeout=5)
     if req.status_code != 200:
-      daemonLogHandler.error('[' + t.name + '] - Received wrong http status [' + req.status_code + ']')
+      daemonLogHandler.error('[' + t.name + '] - Received wrong http status [' + str(req.status_code) + ']')
       daemonLogHandler.error('[' + t.name + '] - Upload Method Failed.')
       return_data = {'measure': 0}
     else:
@@ -150,7 +150,7 @@ def runTests(env):
       daemonLogHandler.debug('[' + t.name + '] - Sending Measure data to [' + send_measure_url + '].')
       req = requests.post(send_measure_url, data=json.dumps(measures), headers={"Content-Type": "application/json"}, verify=False, timeout=5)
       if req.status_code != 200:
-        daemonLogHandler.error('[' + t.name + '] - Received wrong http status [' + req.status_code + ']')
+        daemonLogHandler.error('[' + t.name + '] - Received wrong http status [' + str(req.status_code) + ']')
         daemonLogHandler.error('[' + t.name + '] - Failed to send Measure data to Server.')
       else:
         daemonLogHandler.debug('[' + t.name + '] - Successed Sent Measure data to Server')
