@@ -193,9 +193,9 @@ def threadKeepAlive(thread):
   daemonLogHandler.info('[ThreadKeepAlive] - Starting Thread Keep Alive Process.')
   for threadObj in threading.enumerate():
     threadNameList.append(threadObj.name)
-    if 'Worker-Thread' not in threadNameList:
-      daemonLogHandler.warn('[ThreadKeepAlive] - Thread [Worker-Thread] died unexpectedly. Notifying for troubleshooting reasons.')
-      return False
+  if 'Worker-Thread' not in threadNameList:
+    daemonLogHandler.warn('[ThreadKeepAlive] - Thread [Worker-Thread] died unexpectedly. Notifying for troubleshooting reasons.')
+    return False
   daemonLogHandler.info('[ThreadKeepAlive] - Thread Keep Alive Process Finished.')
   return True
 
