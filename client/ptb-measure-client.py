@@ -53,7 +53,7 @@ class Environment:
     return os.path.dirname(os.path.realpath(__file__))
 
 def properties_loader(propertie_file='client.properties'): 
-  properties = json.loads(open(os.path.dirname(os.path.realpath(__file__)) + '/' + 'client.properties', 'r').read())['ptb_client']
+  properties = json.loads(open(os.path.join(os.path.dirname(os.path.realpath(__file__)), propertie_file), 'r').read())['ptb_client']
   return properties
 
 def download_measure(env):
@@ -207,7 +207,7 @@ def main():
   env = Environment(properties)
   formatter = logging.Formatter('%(asctime)s [%(levelname)s] - %(message)s')
   daemonLogHandler = logging.getLogger('ptb-performance-daemon')
-  hdlr_daemon = RotatingFileHandler(env.get_current_path() + '/' + env.get_log_file(), maxBytes=env.get_log_size_limit() * 1024 * 1024, backupCount=5)
+  hdlr_daemon = RotatingFileHandler(os.path.join(env.get_current_path(), env.get_log_file()), maxBytes=env.get_log_size_limit() * 1024 * 1024, backupCount=5)
   hdlr_daemon.setFormatter(formatter)
   daemonLogHandler.addHandler(hdlr_daemon)
   daemonLogHandler.setLevel(eval(env.get_log_level()))
