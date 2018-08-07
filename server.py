@@ -1,6 +1,8 @@
 #!/usr/bin/python
 import time
-import BaseHTTPServer
+from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+from SocketServer import ThreadingMixIn
+import threading
 import json
 import time
 import datetime
@@ -15,7 +17,7 @@ PORT_NUMBER = 9995
 API_VERSION = 'v1'
 BASE_URL = '/api/v1'
 
-class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+class RequestHandler(BaseHTTPRequestHandler):
     server_version = 'Portability Performance Server/1.0'
     sys_version = ''
 
@@ -83,8 +85,11 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         s.end_headers()
       return
 
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle requests in a separate thread."""
+
 if __name__ == '__main__':
-    server_class = BaseHTTPServer.HTTPServer
+    server_class = ThreadedHTTPServer
     httpd = server_class((HOST_NAME, PORT_NUMBER), RequestHandler)
     print time.asctime(), "Starting Portability Performance Server - %s:%s" % (HOST_NAME, PORT_NUMBER)
     try:
