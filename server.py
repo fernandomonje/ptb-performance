@@ -50,18 +50,76 @@ except Exception, e:
   sys.exit(1)
 
 class RequestHandler(BaseHTTPRequestHandler):
+    """The request handler
+       
+       ...
+       
+       Inherit from BaseHTTPRequestHandler, with some overridden methods.
+       The log_message method was overridden to use an external logger.
+       The server only handle two methods: GET and POST, in very particular contexts.
+       
+       ...
+      
+       Methods
+       -------
+       log_message( format, *args)
+          The log_message method was overridden to use an external logger.
+       real_address_string()
+          Return the real IP address of the request if the server is behind a
+          Reverse Proxy.
+       check_spid_status(spid)
+          Check the current status of a given SPID.
+       setCORSHeaders(res, method, content="application/json")
+          Put several header parameters in the response object to be returned
+          to the client.
+       do_GET()
+          Handle the GET request method.
+       do_POST()
+          Handle the POST request method.
+      
+    """
     server_version = 'Portability Performance Server/1.0'
     sys_version = ''
     def log_message(self, format, *args):
-        serverLogger.info("%s - - %s" % (self.real_address_string(),format%args))
+      """Override the default log_message method to use external logger.
+
+         Parameters
+         ----------
+         format : is a standard printf-style format string where the additional arguments are applied as inputs to the formatting.
+      """
+      serverLogger.info("%s - - %s" % (self.real_address_string(),format%args))
 
     def real_address_string(self):
+      """
+         Since the server will be running behind a Reverse Proxy, we need
+         to get the real ip address of the request. The real ip address is
+         supplied in the 'X-Forwarded-For' header parameter.
+         
+         Returns
+         ----------
+         str
+            the ip address string
+      """  
       if 'X-Forwarded-For' in self.headers:
         return self.headers['X-Forwarded-For']
       else:
         return self.address_string()
 
-    def _check_spid_status(self, spid):
+    def check_spid_status(self, spid):
+      """
+         Open an database cursor using the default database connection, then
+         query for the status of a given SPID.
+
+         Parameters
+         ----------
+         spid : str
+            the SPID to be used in the database query
+
+         Returns
+         ----------
+         bool
+            A boolean value indicating the status of the SPID given as parameter
+      """
       query = 'SELECT COUNT(1) FROM PTB_MEASURE_SPID WHERE spid = :spid AND STATUS = 1'
       try:
         cur = DB_CONNECTION.cursor()
@@ -76,7 +134,19 @@ class RequestHandler(BaseHTTPRequestHandler):
         serverLogger.error('Exception ocurred in database operation: ' + e)
         return False
 
-    def _setCORSHeaders(self, res, method, content="application/json"):
+    def setCORSHeaders(self, res, method, content="application/json"):
+      """
+         Set some security related header parameters and the content-type
+         
+         Parameters
+         ----------
+         res
+           the response object to the request
+         method : str
+           string value to be set as allowed method
+         content : str
+           string value to be set as content-type
+      """
       res.send_header("Access-Control-Allow-Origin", "*");
       res.send_header("Access-Control-Allow-Methods", method);
       res.send_header("Access-Control-Allow-Headers", "accept, content-type");
@@ -84,7 +154,15 @@ class RequestHandler(BaseHTTPRequestHandler):
       res.end_headers()
 
     def do_GET(s):
-      """Response for a GET request."""
+      """Response for a GET method request.
+
+         Only allow to get the '/api/<version>/data' context and serve a dummy file.
+         
+         Returns
+         ----------
+         response
+            The response object
+      """
       if s.path == BASE_URL + '/data':
         try:
           outfile = open('./dummy.file', 'r')
@@ -92,7 +170,7 @@ class RequestHandler(BaseHTTPRequestHandler):
           file_size = int(outfile.tell())
           s.send_response(200)
           s.send_header("Content-Length", file_size)
-          s._setCORSHeaders(s, "GET", "application/octet-stream")
+          s.setCORSHeaders(s, "GET", "application/octet-stream")
           outfile.seek(0,0)
           s.wfile.write(outfile.read())
           outfile.close()
@@ -105,19 +183,31 @@ class RequestHandler(BaseHTTPRequestHandler):
         s.end_headers()
       return
     def do_POST(s):
-      """ Response for a POST request."""
+      """Response for a POST method request.
+
+         only alow two contexts: 
+            * '/api/<version>/data/upload' : used to receive the dummy data
+            * '/api/<version>/carrier/<spid>/measurement' used to receive the 
+              json with the measure information.
+
+         For the measurement receiving there is some validations done to grant that
+         only enabled SPID could send measurements
+      
+         Returns
+         ----------
+         response
+            The response object
+      """
       spid_regex = re.compile(BASE_URL + '/carrier/[0-9]{4}/measurement')
       if s.path == BASE_URL + '/data/upload':
         try:
-          start_request_time = datetime.datetime.now()
           content_length = int(s.headers['Content-Length'])
           file_content = StringIO.StringIO()
           file_content.write(s.rfile.read(content_length))
           file_content.seek(0,2)
           file_content.close()
           s.send_response(200)
-          s._setCORSHeaders(s, "POST", "text/html")
-          end_request_time = datetime.datetime.now()
+          s.setCORSHeaders(s, "POST", "text/html")
         except Exception, e:
           serverLogger.error('Exception in POST method: ' + str(e))
           s.send_response(500, 'Internal Server Error')
@@ -137,7 +227,7 @@ class RequestHandler(BaseHTTPRequestHandler):
           s.send_response(401, 'Invalid SPID from Request o End Point.')
           s.end_headers()
         else:
-          if s._check_spid_status(url_spid):
+          if s.check_spid_status(url_spid):
             try:
               cur = DB_CONNECTION.cursor()
               params_list = [ 'spid',
@@ -166,7 +256,7 @@ class RequestHandler(BaseHTTPRequestHandler):
               DB_CONNECTION.commit()
               cur.close()
               s.send_response(200)
-              s._setCORSHeaders(s, "POST", "text/html")
+              s.setCORSHeaders(s, "POST", "text/html")
             except Exception, e:
               serverLogger.error('Failed to commit data to database: ' + str(e))
               s.send_response(500, 'Internal Server Error')
@@ -180,9 +270,22 @@ class RequestHandler(BaseHTTPRequestHandler):
       return
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-    """Handle requests in a separate thread."""
+    """
+       Handle requests in separated thread.
+       Added to support multiple requests at the same time.
+    """
 
 if __name__ == '__main__':
+    """The main program function.
+
+       ...
+
+       It will instantiate a server class and server forever using the hostname/ip and port supplied.
+       The server_class variable will contains the server class to be used.
+       If there is a keyboard interruption the server will stops.
+       Additionally when the server stops, the Oracle database connection will be closed.
+       There is a default logger used to handle log messages.
+    """
     server_class = ThreadedHTTPServer
     httpd = server_class((HOST_NAME, PORT_NUMBER), RequestHandler)
     serverLogger.warn('Starting Portability Performance Server - %s:%s' % (HOST_NAME, PORT_NUMBER))
