@@ -17,6 +17,58 @@ import os
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class Environment:
+  """
+    Class to used to to represent all environment related information
+
+    Attributes
+    ----------
+    spid : str
+       the SPID value
+    server : str
+       the server address to send requests
+    port : str
+       the server port
+    api_version : str
+       the api_version to be used in requests
+    log_size_limit : int
+       the log size limit in MB
+    measure_interval : int
+       the amount of seconds to wait between each measure
+    base_url : str
+       the base url to be used in requests
+    log_level : str
+       the log level to be used in the log handler (INFO, ERROR, DEBUG, WARN)
+    log_file : str
+       the log file name to be used in the log handler
+    thread_keep_alive : int
+       the amount of seconds to wait between thread keep alive checks
+ 
+    Methods
+    -------
+    get_spid
+       returns the SPID string value
+    get_server
+       returns the server string value
+    get_port
+       returns the port string value
+    get_api_version
+       returns the api_version string value
+    get_log_size_limit
+       returns the log_size_limit int value
+    get_measure_interval
+       returns the measure_interval int value
+    get_base_url
+       return the base_url string value
+    get_log_level
+       return the log_level string value
+    get_log_file
+       return the log_file string value
+    get_thread_keep_alive
+       return the thread_keep_alive int value
+    get_current_path
+       return the os path of the program
+   
+  """
   def __init__(self, properties):
     self.spid = properties['spid']
     self.server = properties['server']
@@ -53,6 +105,22 @@ class Environment:
     return os.path.dirname(os.path.realpath(__file__))
 
 def properties_loader(propertie_file='client.properties'): 
+  """The properties Loader
+     
+     ...
+ 
+     Load the properties from a given json file
+
+     Parameters
+     ----------
+     propertie_file : str, optional
+        the propertie file name to be used (default is 'client.properties')
+        
+     Returns
+     -------
+     json
+        json object containing all the values from the properties file
+  """
   properties = json.loads(open(os.path.join(os.path.dirname(os.path.realpath(__file__)), propertie_file), 'r').read())['ptb_client']
   return properties
 
