@@ -1,3 +1,12 @@
+"""
+.. module:: ptb-performance-client
+   :platform: Unix, Windows
+   :synopsis: ptb-performance client module
+
+.. moduleauthor:: Fernando Monje <fcmonje@gmail.com>
+
+
+"""
 #!/usr/bin/python
 import time
 import requests

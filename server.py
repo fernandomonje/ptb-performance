@@ -1,3 +1,12 @@
+"""
+.. module:: server
+   :platform: Unix
+   :synopsis: ptb-performance server module
+
+.. moduleauthor:: Fernando Monje <fcmonje@gmail.com>
+
+
+"""
 #!/usr/bin/python
 import time
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
