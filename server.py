@@ -131,7 +131,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         else:
           return False
       except Exception, e:
-        serverLogger.error('Exception ocurred in database operation: ' + e)
+        serverLogger.error('Exception ocurred in database operation: ' + str(e))
         return False
 
     def setCORSHeaders(self, res, method, content="application/json"):

@@ -4,7 +4,6 @@ import requests
 import json
 import time
 from datetime import datetime
-import re
 import pyping
 import StringIO
 import urllib3
@@ -125,6 +124,27 @@ def properties_loader(propertie_file='client.properties'):
   return properties
 
 def download_measure(env):
+  """Download Measure Method
+
+     ...
+ 
+     Run the download measurement, based on the server, port, 
+     base_url and API version parameters from the env object.
+     The downloaded data is stored in an StringIO object to
+     generate the measurement and to be passed to the upload method.
+
+     Parameters
+     ----------
+     env : Environment
+        Environment object containing the parameters to be used in
+        the measurement.
+
+     Returns
+     -------
+     dict
+       A dictionary contaning the measurement data and the StringIO
+       object as a file to be used in the upload method.
+  """
   global daemonLogHandler
   t = threading.currentThread()
   return_data = {}
@@ -152,6 +172,30 @@ def download_measure(env):
   return return_data
 
 def upload_measure(env, dummy_file):
+  """Upload Measure Method
+
+     Run the upload measurement, based on the server, port,
+     base_url and API version parameters from the env object.
+     The data to be uploaded come from the dummy_file parameter
+
+     ...
+
+     Parameters
+     ----------
+     env : Environment
+        Environment object containing the parameters to be used in
+        the measurement.
+
+     dummy_file : file (StringIO)
+        The file object to be used in the upload process.
+        This file come from the download method and is kept
+        in memory until the upload method is finished.
+
+     Returns
+     -------
+     dict
+       A dictionary contaning the measurement data.
+  """
   global daemonLogHandler
   t = threading.currentThread()
   return_data = {}
@@ -180,6 +224,22 @@ def upload_measure(env, dummy_file):
   return return_data
 
 def runTests(env):
+  """The runTests method
+
+     The runTests is the method that efectively run the measurement
+     methods (download, upload, ping) and send the measurement data
+     to the server in a json format.
+     This is a thread method that stay in a infinite loop, so its kept running until the main 
+     process is stopped.
+
+     ...
+
+     Parameters
+     ----------
+     env : Environment
+        Environment object containing the parameters to be used in
+        the measurement.
+  """
   global daemonLogHandler
   t = threading.currentThread()
   __setStop = False
@@ -241,6 +301,21 @@ def runTests(env):
   daemonLogHandler.info('[' + t.name + '] - Thread finished.')
 
 def stopGracefully(signum, frame):
+  """Signal handler method
+  
+     Handle the signals to stop the main processes and all the
+     threads.
+
+     ...
+
+     Parameters
+     ----------
+     signum : int
+        the signal number to be handled
+
+     frame : str
+        the method name used in the call (self) 
+  """
   global mainThreadStops
   global daemonLogHandler
   if signum == 2:
@@ -255,7 +330,21 @@ def stopGracefully(signum, frame):
   mainThreadStops = True
   daemonLogHandler.warn('All threads stopped.')
 
-def threadKeepAlive(thread):
+def threadKeepAlive():
+  """The thread keep alive method
+
+     This method checks the state of the runTests thread.
+     Since the thread should be running all the time, if the
+     thread for any reason is not responding, this method
+     sinalize the main thread to restart the runTests thread.
+
+     ...
+
+     Returns
+     -------
+     bool
+        A boolean value indicating the status of the thread
+  """
   global daemonLogHandler
   threadNameList = []
   daemonLogHandler.info('[ThreadKeepAlive] - Starting Thread Keep Alive Process.')
@@ -268,6 +357,18 @@ def threadKeepAlive(thread):
   return True
 
 def main():
+  """The main program
+     
+     The main program is responsible for invoke all the base methods
+     like instantiate the Environment object, define logging information
+     start the runTests thread and control the thread keep alive method
+     execution time. This method handle the external signals passed to
+     the program to stop the program and all threads, invoking the
+     stioGracefully method.
+
+     ...
+
+  """
   global mainThreadStops
   global daemonLogHandler
   global mainThreadStops
@@ -305,7 +406,7 @@ def main():
     if KP_COUNTER < KEEP_ALIVE_TIMER:
       KP_COUNTER += 1
     else:
-      if not threadKeepAlive(t):
+      if not threadKeepAlive():
         daemonLogHandler.warn('Attemping to restart Thread [' + t.name + '].')
         t = threading.Thread(target=runTests,name="Worker-Thread",  args=(env,))
         daemonLogHandler.info('Starting Thread [' + t.name + '].')
