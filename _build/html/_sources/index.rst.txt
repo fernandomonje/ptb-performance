@@ -7,6 +7,8 @@ ptb-performance documentation
 
 .. automodule:: .server
 
+.. automodule:: client.ptb-measure-client
+
 
 
 
