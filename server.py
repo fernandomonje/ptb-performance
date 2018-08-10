@@ -1,5 +1,7 @@
+#!/usr/bin/python
 """
-.. module:: server
+.. currentmodule:: .server
+   :members:
    :platform: Unix
    :synopsis: ptb-performance server module
 
@@ -7,7 +9,6 @@
 
 
 """
-#!/usr/bin/python
 import time
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from SocketServer import ThreadingMixIn

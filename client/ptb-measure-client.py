@@ -1,5 +1,7 @@
+#!/usr/bin/python
 """
-.. module:: ptb-performance-client
+.. module:: ptb-measure-client
+   :members:
    :platform: Unix, Windows
    :synopsis: ptb-performance client module
 
@@ -7,7 +9,6 @@
 
 
 """
-#!/usr/bin/python
 import time
 import requests
 import json
