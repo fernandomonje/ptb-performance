@@ -1,7 +1,6 @@
 #!/usr/bin/python
 """
-.. currentmodule:: .server
-   :members:
+.. currentmodule:: server
    :platform: Unix
    :synopsis: ptb-performance server module
 
