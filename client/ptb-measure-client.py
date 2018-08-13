@@ -85,7 +85,7 @@ class Environment:
     self.log_size_limit = properties['log_size_limit']
     self.measure_interval = properties['measure_interval']
     self.block_window_start = properties['measurement_block_window_start']
-    self.block_window.end = properties['measurement_block_window_end']
+    self.block_window_end = properties['measurement_block_window_end']
     self.base_url = properties['base_url']
     self.log_level = properties['log_level']
     self.log_file = properties['log_file']
@@ -104,7 +104,7 @@ class Environment:
   def get_log_size_limit(self):
     return self.log_size_limit
   def get_measure_interval(self):
-    return self.measure_interva
+    return self.measure_interval
   def get_block_window_start(self):
     return self.block_window_start
   def get_block_window_end(self):
@@ -121,7 +121,6 @@ class Environment:
     return os.path.dirname(os.path.realpath(__file__))
   def get_block_window_status(self):
     if self.block_window_start == "0" or self.block_window_end == "0":
-      daemonLogHandler.debug('No blocking window defined. considering no blocking window.')
       return False
     else:
       today_date = datetime.now().strftime('%d/%m/%Y')
@@ -129,10 +128,8 @@ class Environment:
         block_window_start = time.mktime(datetime.strptime(today_date + ' ' + self.block_window_start + ':00', '%d/%m/%Y %H:%M').timetuple())
         block_window_end   = time.mktime(datetime.strptime(today_date + ' ' + self.block_window_end + ':00', '%d/%m/%Y %H:%M').timetuple())
         if time.time() >= block_window_start or time.time() <= block_window_end:
-          daemonLogHandler.debug('Current time contained in a blocking window.')
           return True
         else:
-          daemonLogHandler.debug('Current time not contained in a blocking window.')
           return False
       except Exception as e:
         daemonLogHandler.error('Failed to determine the measurement block window, considering no block window.')
@@ -325,7 +322,7 @@ def runTests(env):
       except Exception as e:
         daemonLogHandler.debug('[' + t.name + '] - Send Measure Exception: ' + str(e))
         daemonLogHandler.error('[' + t.name + '] - Failed to send measures to Server.')
-      daemonLogHandler.info('['+t.name+'] - Thread will sleep for the amount of seconds defined in the measure_interval parameter['+str(env.get_measure_interval())+']')
+    daemonLogHandler.info('['+t.name+'] - Thread will sleep for the amount of seconds defined in the measure_interval parameter['+str(env.get_measure_interval())+']')
     timer = 0
     while timer <= env.get_measure_interval():
       time.sleep(1)
