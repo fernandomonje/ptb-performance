@@ -1,13 +1,4 @@
 #!/usr/bin/python
-"""
-.. module:: ptb-measure-client
-   :platform: Unix, Windows
-   :synopsis: ptb-performance client module
-
-.. moduleauthor:: Fernando Monje <fcmonje@gmail.com>
-
-
-"""
 import time
 import requests
 import json
