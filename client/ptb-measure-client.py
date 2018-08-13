@@ -127,7 +127,7 @@ class Environment:
       try:
         block_window_start = time.mktime(datetime.strptime(today_date + ' ' + self.block_window_start + ':00', '%d/%m/%Y %H:%M').timetuple())
         block_window_end   = time.mktime(datetime.strptime(today_date + ' ' + self.block_window_end + ':00', '%d/%m/%Y %H:%M').timetuple())
-        if time.time() >= block_window_start or time.time() <= block_window_end:
+        if time.time() >= block_window_start and time.time() <= block_window_end:
           return True
         else:
           return False
