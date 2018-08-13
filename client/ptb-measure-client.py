@@ -85,7 +85,7 @@ class Environment:
     self.log_size_limit = properties['log_size_limit']
     self.measure_interval = properties['measure_interval']
     self.block_window_start = properties['measurement_block_window_start']
-    seld.block_window.end = properties['measurement_block_window_end']
+    self.block_window.end = properties['measurement_block_window_end']
     self.base_url = properties['base_url']
     self.log_level = properties['log_level']
     self.log_file = properties['log_file']
