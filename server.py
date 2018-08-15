@@ -22,11 +22,11 @@ global DB_SCHEMA
 global DB_CONNECTION
 
 # Global Variables Settings
-DB_USER='scada'
-DB_PASS='sca#0406'
-DB_HOST='smcx5-scan'
-DB_SCHEMA='compp'
-HOST_NAME = '10.100.102.52'
+DB_USER=''
+DB_PASS=''
+DB_HOST=''
+DB_SCHEMA=''
+HOST_NAME = ''
 PORT_NUMBER = 9995
 API_VERSION = 'v1'
 BASE_URL = '/api/v1'
