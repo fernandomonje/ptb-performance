@@ -13,6 +13,7 @@ import sys
 import logging
 from logging.handlers import RotatingFileHandler
 import os
+import threading
 
 # Global Variables Denifitions
 global DB_USER
@@ -41,13 +42,45 @@ frmt = logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s')
 defaultLogHandler.setFormatter(frmt)
 serverLogger.addHandler(defaultLogHandler)
 
-try:
-  DB_CONNECTION = cx_Oracle.connect(DB_USER + '/' + DB_PASS + '@' + DB_HOST + '/' + DB_SCHEMA)
-except Exception, e:
-  serverLogger.error('No connection could be made to database.')
-  serverLogger.error('Exception: ' + e)
-  serverLogger.error('Server will not start.')
-  sys.exit(1)
+
+def create_db_connection(): 
+  global DB_USER
+  global DB_PASS
+  global DB_HOST
+  global DB_SCHEMA
+  global DB_CONNECTION
+  try:
+    DB_CONNECTION = cx_Oracle.connect(DB_USER + '/' + DB_PASS + '@' + DB_HOST + '/' + DB_SCHEMA)
+  except Exception, e:
+    serverLogger.error('No connection could be made to database.')
+    serverLogger.error('Exception: ' + e)
+    serverLogger.error('Server will not start.')
+    sys.exit(1)
+
+def check_db_connection():
+  global DB_CONNECTION
+  serverLogger.info('Starting DB Connection Test.'
+  try:
+    cur = DB_CONNECTION.cursor()
+    cur.prepare('SELECT SYSDATE FROM DUAL')
+    cur.execute()
+    cur.fectchall()
+    cur.close()
+    serverLogger.info('DB Connection Test was Successful.'
+    return True
+  except Exception, e:
+    serverLogger.error('DB Connection Test error.')
+    serverLogger.debug('Error: ' + str(e))
+    return False
+
+def recreate_db_connection():
+  global DB_CONNECTION
+  serverLogger.info('Error encontered when testing the database connection. The connection will be reacreated.')
+  try:
+    DB_CONNECTION.close()
+  except Exception, e:
+    serverLogger.error('Error when trying to close database connection. Continuing to recreate database connection.')
+  create_db_connection()
 
 class RequestHandler(BaseHTTPRequestHandler):
     """The request handler
@@ -272,6 +305,27 @@ class RequestHandler(BaseHTTPRequestHandler):
         s.end_headers()
       return
 
+def DatabaseMonitoringThread():
+  __setStop = False
+  t = threading.currentThread()
+  serverLogger.debug('[' + t.name + '] - Thread successfully started.')
+  while getattr(t, "do_run", True):
+    if not check_db_connection():
+      recreate_db_connection()
+    timer = 0
+    while timer < 120):
+      time.sleep(1)
+      timer += 1
+      if not getattr(t, "do_run"):
+        serverLogger.debug('[' + t.name + '] - Thread received signal to stop.')
+        serverLogger.debug('[' + t.name + '] - Thread is stopping all operations.')
+        __setStop = True
+        break
+    if __setStop:
+      break
+  serverLogger.debug('[' + t.name + '] - Thread stopped successfully.')
+  serverLogger.info('[' + t.name + '] - Thread finished.')
+
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """
        Handle requests in separated thread.
@@ -292,10 +346,17 @@ if __name__ == '__main__':
     server_class = ThreadedHTTPServer
     httpd = server_class((HOST_NAME, PORT_NUMBER), RequestHandler)
     serverLogger.warn('Starting Portability Performance Server - %s:%s' % (HOST_NAME, PORT_NUMBER))
+    create_db_connection(DB_HOST, DB_SCHEMA, DB_USER, DB_PASS) 
+    t = threading.Thread(target=DatabaseMonitoringThread,name="db-monitoring-Thread")
+    serverLogger.info('Starting Thread [' + t.name + '].')
+    t.start()
+    t.do_run = True
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         pass
+    t.do_run = False
+    t.join(1)
     httpd.server_close()
     DB_CONNECTION.close()
     serverLogger.warn('Portability Performance Server stopped - %s:%s' % (HOST_NAME, PORT_NUMBER))
