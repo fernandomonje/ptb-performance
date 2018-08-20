@@ -16,41 +16,151 @@ import os
 import threading
 
 # Global Variables Denifitions
-global DB_USER
-global DB_PASS
-global DB_HOST
-global DB_SCHEMA
 global DB_CONNECTION
 
 # Global Variables Settings
-DB_USER=''
-DB_PASS=''
-DB_HOST=''
-DB_SCHEMA=''
-HOST_NAME = ''
-PORT_NUMBER = 9995
-API_VERSION = 'v1'
-BASE_URL = '/api/v1'
 LOG_FILE_NAME = 'ptb_performance_server.log'
 LOG_MAX_SIZE_MB = 50 * 1024 * 1024
 LOG_LEVEL = 'DEBUG'
 
-serverLogger = logging.getLogger('server-Logger')
-defaultLogHandler = RotatingFileHandler(os.path.join(os.path.dirname(os.path.realpath(__file__)), LOG_FILE_NAME), maxBytes=LOG_MAX_SIZE_MB, backupCount=10)
-serverLogger.setLevel(eval('logging.' + LOG_LEVEL))
-frmt = logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s')
-defaultLogHandler.setFormatter(frmt)
-serverLogger.addHandler(defaultLogHandler)
+def set_logger(env):
+  serverLogger = logging.getLogger('server-Logger')
+  defaultLogHandler = RotatingFileHandler(os.path.join(os.path.dirname(os.path.realpath(__file__)), \
+    env.get_log_file()), maxBytes=env.get_log_size() * 1024 * 1024, backupCount=env.get_log_backup_count())
+  serverLogger.setLevel(eval(env.get_log_level()))
+  frmt = logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s')
+  defaultLogHandler.setFormatter(frmt)
+  serverLogger.addHandler(defaultLogHandler)
 
+class Environment:
+  """
+    Class to used to to represent all environment related information
 
-def create_db_connection(): 
-  global DB_USER
-  global DB_PASS
-  global DB_HOST
-  global DB_SCHEMA
+    Attributes
+    ----------
+    host : str
+       the host address to start the server
+    port : str
+       the server port
+    api_version : str
+       the api_version to be used in requests
+    log_size_limit : int
+       the log size limit in MB
+    base_url : str
+       the base url to be used in requests
+    log_level : str
+       the log level to be used in the log handler (INFO, ERROR, DEBUG, WARN)
+    log_file : str
+       the log file name to be used in the log handler
+    log_backup_count : int
+       the log backup count for log rotate propouses
+    db_check_interval : int
+       the amount of seconds to wait between db status checks
+    db_host : str
+       the database hostname / ip string
+    db_schema : str
+       the database schema name
+    db_user : str
+       the database user
+    db_password : str
+       the database password
+
+    Methods
+    -------
+    get_host
+       returns the host string value
+    get_port
+       returns the port string value
+    get_api_version
+       returns the api_version string value
+    get_log_size_limit
+       returns the log_size_limit int value
+    get_db_check_interval
+       returns the db_check_interval int value
+    get_base_url
+       return the base_url string value
+    get_log_level
+       return the log_level string value
+    get_log_file
+       return the log_file string value
+    get_log_backup_count
+       return the log backup count int value
+    get_db_host
+       return the database hostname string value
+    get_db_schema
+       return the database schema string value
+    get_db_user
+       return the database user string value
+    get_db_password
+       return the database password string value
+
+  """
+  def __init__(self, properties):
+    self.host = properties['host']
+    self.port = properties['port']
+    self.api_version = properties['api_version']
+    self.log_size_limit = properties['log_size_limit']
+    self.db_check_interval = properties['db_check_interval']
+    self.base_url = properties['base_url']
+    self.log_level = properties['log_level']
+    self.log_file = properties['log_file']
+    self.log_backup_count = properties['log_backup_count']
+    self.db_host = properties['database_host']
+    self.db_schema = properties['database_schema']
+    self.db_user = properties['database_user']
+    self.db_password = properties['database_password']
+
+  def get_host(self):
+    return self.host
+  def get_port(self):
+    return self.port
+  def get_api_version(self):
+    return self.api_version
+  def get_log_size_limit(self):
+    return self.log_size_limit
+  def get_log_backup_coun(self):
+    return self.log_backup_count
+  def get_db_check_interval(self):
+    return self.db_check_interval
+  def get_base_url(self):
+    return self.base_url
+  def get_log_level(self):
+    return self.log_level
+  def get_log_file(self):
+    return self.log_file
+  def get_db_host(self):
+    return self.db_host
+  def get_db_schema(self):
+    return self.db_schema'
+  def get_db_user(self):
+    return self.db_user
+  def get_db_password(self):
+    return self.db_password
+
+def properties_loader(propertie_file='server.properties'):
+  """The properties Loader
+
+     ...
+
+     Load the properties from a given json file
+
+     Parameters
+     ----------
+     propertie_file : str, optional
+        the propertie file name to be used (default is 'client.properties')
+
+     Returns
+     -------
+     json
+        json object containing all the values from the properties file
+  """
+  properties = json.loads(open(os.path.join(os.path.dirname(os.path.realpath(__file__)), propertie_file), 'r').read())['ptb_client']
+  return properties
+
+def create_db_connection(env): 
   global DB_CONNECTION
   try:
-    DB_CONNECTION = cx_Oracle.connect(DB_USER + '/' + DB_PASS + '@' + DB_HOST + '/' + DB_SCHEMA)
+    DB_CONNECTION = cx_Oracle.connect(env.get_db_user() + '/' + env.get_db_password() + '@' + env.get_db_host() + '/' + env.get_db_schema())
   except Exception, e:
     serverLogger.error('No connection could be made to database.')
     serverLogger.error('Exception: ' + e)
@@ -59,28 +169,25 @@ def create_db_connection():
 
 def check_db_connection():
   global DB_CONNECTION
-  serverLogger.info('Starting DB Connection Test.'
   try:
     cur = DB_CONNECTION.cursor()
-    cur.prepare('SELECT SYSDATE FROM DUAL')
-    cur.execute()
-    cur.fectchall()
+    cur.execute('SELECT SYSDATE FROM DUAL')
     cur.close()
-    serverLogger.info('DB Connection Test was Successful.'
+    serverLogger.info('DB Connection Test was Successful.')
     return True
   except Exception, e:
     serverLogger.error('DB Connection Test error.')
     serverLogger.debug('Error: ' + str(e))
     return False
 
-def recreate_db_connection():
+def recreate_db_connection(env):
   global DB_CONNECTION
   serverLogger.info('Error encontered when testing the database connection. The connection will be reacreated.')
   try:
     DB_CONNECTION.close()
   except Exception, e:
     serverLogger.error('Error when trying to close database connection. Continuing to recreate database connection.')
-  create_db_connection()
+  create_db_connection(env)
 
 class RequestHandler(BaseHTTPRequestHandler):
     """The request handler
@@ -113,6 +220,10 @@ class RequestHandler(BaseHTTPRequestHandler):
     """
     server_version = 'Portability Performance Server/1.0'
     sys_version = ''
+
+    def set_environment(env):
+      self.env = env
+
     def log_message(self, format, *args):
       """Override the default log_message method to use external logger.
 
@@ -196,7 +307,7 @@ class RequestHandler(BaseHTTPRequestHandler):
          response
             The response object
       """
-      if s.path == BASE_URL + '/data':
+      if s.path == self.env.get_base_url() + '/' + self.env.get_api_version() + '/data':
         try:
           outfile = open('./dummy.file', 'r')
           outfile.seek(0,2)
@@ -231,8 +342,8 @@ class RequestHandler(BaseHTTPRequestHandler):
          response
             The response object
       """
-      spid_regex = re.compile(BASE_URL + '/carrier/[0-9]{4}/measurement')
-      if s.path == BASE_URL + '/data/upload':
+      spid_regex = re.compile(self.env.get_base_url() + '/' + self.env.get_api_version() + '/carrier/[0-9]{4}/measurement')
+      if s.path == self.env.get_base_url() + '/' + self.env.get_api_version() + '/data/upload':
         try:
           content_length = int(s.headers['Content-Length'])
           file_content = StringIO.StringIO()
@@ -246,7 +357,7 @@ class RequestHandler(BaseHTTPRequestHandler):
           try:
             s.send_response(500, 'Internal Server Error')
             s.end_headers()
-          except Exception e:
+          except Exception, e:
             serverLogger.error('Exception in POST method when trying to send request status: ' + str(e))
       elif spid_regex.search(s.path):
         url_spid = s.path.split('/')[4]
@@ -296,6 +407,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             except Exception, e:
               serverLogger.error('Failed to commit data to database: ' + str(e))
               s.send_response(500, 'Internal Server Error')
+              recreate_db_connection()
               s.end_headers()
           else:
             s.send_response(401, 'SPID Inactive at Server.')
@@ -305,26 +417,26 @@ class RequestHandler(BaseHTTPRequestHandler):
         s.end_headers()
       return
 
-def DatabaseMonitoringThread():
+def DatabaseMonitoringThread(env):
   __setStop = False
   t = threading.currentThread()
-  serverLogger.debug('[' + t.name + '] - Thread successfully started.')
+  serverLogger.debug('[' + t.getName() + '] - Thread successfully started.')
   while getattr(t, "do_run", True):
-    if not check_db_connection():
-      recreate_db_connection()
+    if not check_db_connection(env):
+      recreate_db_connection(env)
     timer = 0
-    while timer < 120):
+    while timer < env.get_db_check_interval():
       time.sleep(1)
       timer += 1
       if not getattr(t, "do_run"):
-        serverLogger.debug('[' + t.name + '] - Thread received signal to stop.')
-        serverLogger.debug('[' + t.name + '] - Thread is stopping all operations.')
+        serverLogger.debug('[' + t.getName() + '] - Thread received signal to stop.')
+        serverLogger.debug('[' + t.getName() + '] - Thread is stopping all operations.')
         __setStop = True
         break
     if __setStop:
       break
-  serverLogger.debug('[' + t.name + '] - Thread stopped successfully.')
-  serverLogger.info('[' + t.name + '] - Thread finished.')
+  serverLogger.debug('[' + t.getName() + '] - Thread stopped successfully.')
+  serverLogger.info('[' + t.getName() + '] - Thread finished.')
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """
@@ -344,11 +456,15 @@ if __name__ == '__main__':
        There is a default logger used to handle log messages.
     """
     server_class = ThreadedHTTPServer
-    httpd = server_class((HOST_NAME, PORT_NUMBER), RequestHandler)
-    serverLogger.warn('Starting Portability Performance Server - %s:%s' % (HOST_NAME, PORT_NUMBER))
-    create_db_connection(DB_HOST, DB_SCHEMA, DB_USER, DB_PASS) 
-    t = threading.Thread(target=DatabaseMonitoringThread,name="db-monitoring-Thread")
-    serverLogger.info('Starting Thread [' + t.name + '].')
+    properties = properties_loader()
+    env = Environment(properties)
+    set_logger(env)
+    httpd = server_class((env.get_host(), env.get_port()), RequestHandler)
+    httpd.set_environment(env)
+    serverLogger.warn('Starting Portability Performance Server - %s:%s' % (env.get_host(), env.get_port()))
+    create_db_connection(env) 
+    t = threading.Thread(target=DatabaseMonitoringThread,name="db-monitoring-Thread", args=(env,))
+    serverLogger.info('Starting Thread [' + t.getName() + '].')
     t.start()
     t.do_run = True
     try:
@@ -359,4 +475,4 @@ if __name__ == '__main__':
     t.join(1)
     httpd.server_close()
     DB_CONNECTION.close()
-    serverLogger.warn('Portability Performance Server stopped - %s:%s' % (HOST_NAME, PORT_NUMBER))
+    serverLogger.warn('Portability Performance Server stopped - %s:%s' % (env.get_host(), env.get_port()))
