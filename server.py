@@ -17,6 +17,8 @@ import threading
 
 # Global Variables Denifitions
 global DB_CONNECTION
+global serverLogger
+
 
 # Global Variables Settings
 LOG_FILE_NAME = 'ptb_performance_server.log'
@@ -24,9 +26,10 @@ LOG_MAX_SIZE_MB = 50 * 1024 * 1024
 LOG_LEVEL = 'DEBUG'
 
 def set_logger(env):
+  global serverLogger
   serverLogger = logging.getLogger('server-Logger')
   defaultLogHandler = RotatingFileHandler(os.path.join(os.path.dirname(os.path.realpath(__file__)), \
-    env.get_log_file()), maxBytes=env.get_log_size() * 1024 * 1024, backupCount=env.get_log_backup_count())
+    env.get_log_file()), maxBytes=env.get_log_size_limit() * 1024 * 1024, backupCount=env.get_log_backup_count())
   serverLogger.setLevel(eval(env.get_log_level()))
   frmt = logging.Formatter('%(asctime)s - [%(levelname)s] - %(message)s')
   defaultLogHandler.setFormatter(frmt)
@@ -70,7 +73,7 @@ class Environment:
     get_host
        returns the host string value
     get_port
-       returns the port string value
+       returns the port int value
     get_api_version
        returns the api_version string value
     get_log_size_limit
@@ -128,10 +131,12 @@ class Environment:
     return self.log_level
   def get_log_file(self):
     return self.log_file
+  def get_log_backup_count(self):
+    return self.log_backup_count
   def get_db_host(self):
     return self.db_host
   def get_db_schema(self):
-    return self.db_schema'
+    return self.db_schema
   def get_db_user(self):
     return self.db_user
   def get_db_password(self):
@@ -154,10 +159,10 @@ def properties_loader(propertie_file='server.properties'):
      json
         json object containing all the values from the properties file
   """
-  properties = json.loads(open(os.path.join(os.path.dirname(os.path.realpath(__file__)), propertie_file), 'r').read())['ptb_client']
+  properties = simplejson.loads(open(os.path.join(os.path.dirname(os.path.realpath(__file__)), propertie_file), 'r').read())['ptb_server']
   return properties
 
-def create_db_connection(env): 
+def create_db_connection(env):
   global DB_CONNECTION
   try:
     DB_CONNECTION = cx_Oracle.connect(env.get_db_user() + '/' + env.get_db_password() + '@' + env.get_db_host() + '/' + env.get_db_schema())
@@ -191,15 +196,15 @@ def recreate_db_connection(env):
 
 class RequestHandler(BaseHTTPRequestHandler):
     """The request handler
-       
+
        ...
-       
+
        Inherit from BaseHTTPRequestHandler, with some overridden methods.
        The log_message method was overridden to use an external logger.
        The server only handle two methods: GET and POST, in very particular contexts.
-       
+
        ...
-      
+
        Methods
        -------
        log_message( format, *args)
@@ -216,13 +221,10 @@ class RequestHandler(BaseHTTPRequestHandler):
           Handle the GET request method.
        do_POST()
           Handle the POST request method.
-      
+
     """
     server_version = 'Portability Performance Server/1.0'
     sys_version = ''
-
-    def set_environment(env):
-      self.env = env
 
     def log_message(self, format, *args):
       """Override the default log_message method to use external logger.
@@ -238,12 +240,12 @@ class RequestHandler(BaseHTTPRequestHandler):
          Since the server will be running behind a Reverse Proxy, we need
          to get the real ip address of the request. The real ip address is
          supplied in the 'X-Forwarded-For' header parameter.
-         
+
          Returns
          ----------
          str
             the ip address string
-      """  
+      """
       if 'X-Forwarded-For' in self.headers:
         return self.headers['X-Forwarded-For']
       else:
@@ -281,7 +283,7 @@ class RequestHandler(BaseHTTPRequestHandler):
     def setCORSHeaders(self, res, method, content="application/json"):
       """
          Set some security related header parameters and the content-type
-         
+
          Parameters
          ----------
          res
@@ -301,13 +303,13 @@ class RequestHandler(BaseHTTPRequestHandler):
       """Response for a GET method request.
 
          Only allow to get the '/api/<version>/data' context and serve a dummy file.
-         
+
          Returns
          ----------
          response
             The response object
       """
-      if s.path == self.env.get_base_url() + '/' + self.env.get_api_version() + '/data':
+      if s.path == env.get_base_url() + '/' + env.get_api_version() + '/data':
         try:
           outfile = open('./dummy.file', 'r')
           outfile.seek(0,2)
@@ -329,21 +331,21 @@ class RequestHandler(BaseHTTPRequestHandler):
     def do_POST(s):
       """Response for a POST method request.
 
-         only alow two contexts: 
+         only alow two contexts:
             * '/api/<version>/data/upload' : used to receive the dummy data
-            * '/api/<version>/carrier/<spid>/measurement' used to receive the 
+            * '/api/<version>/carrier/<spid>/measurement' used to receive the
               json with the measure information.
 
          For the measurement receiving there is some validations done to grant that
          only enabled SPID could send measurements
-      
+
          Returns
          ----------
          response
             The response object
       """
-      spid_regex = re.compile(self.env.get_base_url() + '/' + self.env.get_api_version() + '/carrier/[0-9]{4}/measurement')
-      if s.path == self.env.get_base_url() + '/' + self.env.get_api_version() + '/data/upload':
+      spid_regex = re.compile(env.get_base_url() + '/' + env.get_api_version() + '/carrier/[0-9]{4}/measurement')
+      if s.path == env.get_base_url() + '/' + env.get_api_version() + '/data/upload':
         try:
           content_length = int(s.headers['Content-Length'])
           file_content = StringIO.StringIO()
@@ -422,7 +424,7 @@ def DatabaseMonitoringThread(env):
   t = threading.currentThread()
   serverLogger.debug('[' + t.getName() + '] - Thread successfully started.')
   while getattr(t, "do_run", True):
-    if not check_db_connection(env):
+    if not check_db_connection():
       recreate_db_connection(env)
     timer = 0
     while timer < env.get_db_check_interval():
@@ -439,10 +441,12 @@ def DatabaseMonitoringThread(env):
   serverLogger.info('[' + t.getName() + '] - Thread finished.')
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-    """
+  """
        Handle requests in separated thread.
        Added to support multiple requests at the same time.
-    """
+  """
+  def set_environment(self, env):
+    self.env = env
 
 if __name__ == '__main__':
     """The main program function.
@@ -462,7 +466,7 @@ if __name__ == '__main__':
     httpd = server_class((env.get_host(), env.get_port()), RequestHandler)
     httpd.set_environment(env)
     serverLogger.warn('Starting Portability Performance Server - %s:%s' % (env.get_host(), env.get_port()))
-    create_db_connection(env) 
+    create_db_connection(env)
     t = threading.Thread(target=DatabaseMonitoringThread,name="db-monitoring-Thread", args=(env,))
     serverLogger.info('Starting Thread [' + t.getName() + '].')
     t.start()
