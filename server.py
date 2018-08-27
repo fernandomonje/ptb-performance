@@ -386,8 +386,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                               'ping_packet_loss',]
               for param in params_list:
                 if not param in json_loaded:
-                  s.send_response(401, 'Json Missing Parameters.')
                   s.end_headers()
+                  s.send_response(401, 'Json Missing Parameters.')
                   return
               cur.prepare('INSERT INTO SCADA.PTB_MEASURE_DATA (SPID, DATETIME, UPLOAD_BANDWIDTH, DOWNLOAD_BANDWIDTH, \
                            PING_RESPONSE_TIME, PING_PACKET_LOSS) VALUES (:SPID, SYSDATE, :UPLOAD_BANDWIDTH, :DOWNLOAD_BANDWIDTH, \
@@ -401,16 +401,19 @@ class RequestHandler(BaseHTTPRequestHandler):
               serverLogger.error('Failed to get/save data from json to database: ' + str(e))
               s.send_response(500, 'Internal Server Error')
               s.end_headers()
+              recreate_db_connection()
+              return
             try:
               DB_CONNECTION.commit()
               cur.close()
-              s.send_response(200)
               s.setCORSHeaders(s, "POST", "text/html")
+              s.send_response(200)
             except Exception, e:
               serverLogger.error('Failed to commit data to database: ' + str(e))
               s.send_response(500, 'Internal Server Error')
-              recreate_db_connection()
               s.end_headers()
+              recreate_db_connection()
+              return
           else:
             s.send_response(401, 'SPID Inactive at Server.')
             s.end_headers()
