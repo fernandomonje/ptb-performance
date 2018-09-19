@@ -324,6 +324,21 @@ class RequestHandler(BaseHTTPRequestHandler):
           serverLogger.error('Exception in GET method: ' + str(e))
           s.send_response(500, 'Internal Server Error')
           s.end_headers()
+      elif s.path == env.get_base_url() + '/client/ptb-performance-client-lastest.zip':
+        try:
+          outfile = open('./ptb-performance-client-lastest.zip', 'r')
+          outfile.seek(0,2)
+          file_size = int(outfile.tell())
+          s.send_response(200)
+          s.send_header("Content-Length", file_size)
+          s.setCORSHeaders(s, "GET", "application/octet-stream")
+          outfile.seek(0,0)
+          s.wfile.write(outfile.read())
+          outfile.close()
+        except Exception, e:
+          serverLogger.error('Exception in GET method: ' + str(e))
+          s.send_response(500, 'Internal Server Error')
+          s.end_headers()
       else:
         s.send_response(400, 'Invalid Method. Try GET instead')
         s.end_headers()
