@@ -380,6 +380,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             try:
               cur = DB_CONNECTION.cursor()
               params_list = [ 'spid',
+                              'environment',
                               'upload_bandwidth',
                               'download_bandwidth',
                               'ping_response_time',
@@ -389,10 +390,11 @@ class RequestHandler(BaseHTTPRequestHandler):
                   s.end_headers()
                   s.send_response(401, 'Json Missing Parameters.')
                   return
-              cur.prepare('INSERT INTO SCADA.PTB_MEASURE_DATA (SPID, DATETIME, UPLOAD_BANDWIDTH, DOWNLOAD_BANDWIDTH, \
-                           PING_RESPONSE_TIME, PING_PACKET_LOSS) VALUES (:SPID, SYSDATE, :UPLOAD_BANDWIDTH, :DOWNLOAD_BANDWIDTH, \
+              cur.prepare('INSERT INTO SCADA.PTB_MEASURE_DATA (SPID, DATETIME, ENVIRONMENT, UPLOAD_BANDWIDTH, DOWNLOAD_BANDWIDTH, \
+                           PING_RESPONSE_TIME, PING_PACKET_LOSS) VALUES (:SPID, SYSDATE, :ENVIRONMENT, :UPLOAD_BANDWIDTH, :DOWNLOAD_BANDWIDTH, \
                            :PING_RESPONSE_TIME, :PING_PACKET_LOSS)')
               cur.execute(None, {'SPID': json_loaded['spid'],
+                                 'ENVIRONMENT': str(json_loaded['environment']),
                                  'UPLOAD_BANDWIDTH': str(json_loaded['upload_bandwidth']),
                                  'DOWNLOAD_BANDWIDTH' : str(json_loaded['download_bandwidth']),
                                  'PING_RESPONSE_TIME' : str(json_loaded['ping_response_time']),

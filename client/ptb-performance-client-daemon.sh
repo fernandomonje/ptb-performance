@@ -92,7 +92,7 @@ function start() {
   fi
 }
 
-DAEMON_BIN='/opt/ptb-performance-client/ptb-measure-cient.pyc &'
+DAEMON_BIN='python /home/fcardoso/ptb-performance/client/ptb-measure-client.pyc &'
 
 
 case $1 in

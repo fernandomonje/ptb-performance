@@ -156,7 +156,7 @@ def properties_loader(propertie_file='client.properties'):
   properties = json.loads(open(os.path.join(os.path.dirname(os.path.realpath(__file__)), propertie_file), 'r').read())['ptb_client']
   return properties
 
-def download_measure(env):
+def download_measure(env, site):
   """Download Measure Method
 
      ...
@@ -181,7 +181,10 @@ def download_measure(env):
   global daemonLogHandler
   t = threading.currentThread()
   return_data = {}
-  url = 'https://' + env.get_primary_server() + ':' + env.get_port() + env.get_base_url() + env.get_api_version() + '/data'
+  if site == 'primary':
+    url = 'https://' + env.get_primary_server() + ':' + env.get_port() + env.get_base_url() + env.get_api_version() + '/data'
+  else:
+    url = 'https://' + env.get_secondary_server() + ':' + env.get_port() + env.get_base_url() + env.get_api_version() + '/data'
   daemonLogHandler.debug('[' + t.name + '] - Starting Download Method using [' + url + ']')
   current_ts = time.time()
   file = StringIO.StringIO()
@@ -204,7 +207,7 @@ def download_measure(env):
     return_data = {'measure': 0}
   return return_data
 
-def upload_measure(env, dummy_file):
+def upload_measure(env, dummy_file, site):
   """Upload Measure Method
 
      Run the upload measurement, based on the server, port,
@@ -233,7 +236,10 @@ def upload_measure(env, dummy_file):
   t = threading.currentThread()
   return_data = {}
   current_ts = time.time()
-  post_url = 'https://' + env.get_primary_server() + ':' + env.get_port() + env.get_base_url() + env.get_api_version() + '/data/upload'
+  if site == 'primary':
+    post_url = 'https://' + env.get_primary_server() + ':' + env.get_port() + env.get_base_url() + env.get_api_version() + '/data/upload'
+  else:
+    post_url = 'https://' + env.get_secondary_server() + ':' + env.get_port() + env.get_base_url() + env.get_api_version() + '/data/upload'
   daemonLogHandler.debug('[' + t.name + '] - Starting Upload Method using [' + post_url + ']')
   dummy_file.seek(0,2)
   file_size = int(dummy_file.tell()) / 1024
@@ -282,46 +288,57 @@ def runTests(env):
       daemonLogHandler.info('[' + t.name + '] - Currently in a measurement window blocked.')
     else:
       daemonLogHandler.info('[' + t.name + '] - Currently not in a measurement window blocked.')
-      measures = {"spid" : env.get_spid()}
-      download = download_measure(env)
-      if 'file' in download:
-        measures['download_bandwidth'] = round(float(download['measure']) / 1024,2)
-        daemonLogHandler.debug('[' + t.name + '] - Starting Upload Method since Download Method Successed.')
-        upload_bandwidth = upload_measure(env, download['file'])
-        if upload_bandwidth['measure'] == 0:
+      for site in ['primary', 'secondary']:
+        daemonLogHandler.debug('[' + t.name + '] - Starting measures for ' + site + ' site.')
+        measures = {"spid" : env.get_spid()}
+        measures['environment'] = site
+        download = download_measure(env, site)
+        if 'file' in download:
+          measures['download_bandwidth'] = round(float(download['measure']) / 1024,2)
+          daemonLogHandler.debug('[' + t.name + '] - Starting Upload Method since Download Method Successed.')
+          upload_bandwidth = upload_measure(env, download['file'], site)
+          if upload_bandwidth['measure'] == 0:
+            measures['upload_bandwidth'] = 0.00
+          else:
+            measures['upload_bandwidth'] = round(float(upload_bandwidth['measure']) / 1024,2)
+        else:
+          measures['download_bandwidth'] = 0.00
           measures['upload_bandwidth'] = 0.00
-        else:
-          measures['upload_bandwidth'] = round(float(upload_bandwidth['measure']) / 1024,2)
-      else:
-        measures['download_bandwidth'] = 0.00
-        measures['upload_bandwidth'] = 0.00
-      daemonLogHandler.debug('[' + t.name + '] - Starting Ping Test.')
-      try:
-        ping = pyping.ping(env.get_primary_server())
-        if ping.ret_code != 0:
-          measures['ping_response_time'] = 0
+        daemonLogHandler.debug('[' + t.name + '] - Starting Ping Test.')
+        try:
+          if site == 'primary':
+            ping = pyping.ping(env.get_primary_server())
+          else:
+            ping = pyping.ping(env.get_secondary_server())
+          if ping.ret_code != 0:
+            measures['ping_response_time'] = 0
+            daemonLogHandler.error('[' + t.name + '] - Ping Test Failed.')
+          else:
+            daemonLogHandler.info('[' + t.name + '] - Ping Test Successed.')
+            measures['ping_response_time'] = round(float(ping.avg_rtt),2)
+            measures['ping_packet_loss'] = round(float(ping.packet_lost) / 3 * 100.0, 1)
+        except Exception as e:
+          daemonLogHandler.debug('[' + t.name + '] - Ping Exception: ' + str(e))
           daemonLogHandler.error('[' + t.name + '] - Ping Test Failed.')
-        else:
-          daemonLogHandler.info('[' + t.name + '] - Ping Test Successed.')
-          measures['ping_response_time'] = round(float(ping.avg_rtt),2)
-          measures['ping_packet_loss'] = round(float(ping.packet_lost) / 3 * 100.0, 1)
-      except Exception as e:
-        daemonLogHandler.debug('[' + t.name + '] - Ping Exception: ' + str(e))
-        daemonLogHandler.error('[' + t.name + '] - Ping Test Failed.')
-        measures['ping_response_time'] = 0.00
-        measures['ping_packet_loss'] = 100.0
-      try:
-        send_measure_url = 'https://' + env.get_primary_server() + ':' + env.get_port() + env.get_base_url() + env.get_api_version() + '/carrier/' + env.get_spid() + '/measurement'
-        daemonLogHandler.debug('[' + t.name + '] - Sending Measure data to [' + send_measure_url + '].')
-        req = requests.post(send_measure_url, data=json.dumps(measures), headers={"Content-Type": "application/json"}, verify=False, timeout=5)
-        if req.status_code != 200:
-          daemonLogHandler.error('[' + t.name + '] - Received wrong http status [' + str(req.status_code) + ']')
-          daemonLogHandler.error('[' + t.name + '] - Failed to send Measure data to Server.')
-        else:
-          daemonLogHandler.debug('[' + t.name + '] - Successed Sent Measure data to Server')
-      except Exception as e:
-        daemonLogHandler.debug('[' + t.name + '] - Send Measure Exception: ' + str(e))
-        daemonLogHandler.error('[' + t.name + '] - Failed to send measures to Server.')
+          measures['ping_response_time'] = 0.00
+          measures['ping_packet_loss'] = 100.0
+        try:
+          if site == 'primary':
+            send_measure_url = 'https://' + env.get_primary_server() + ':' + env.get_port() + env.get_base_url() + env.get_api_version() + '/carrier/' + env.get_spid() + '/measurement'
+          else:
+            send_measure_url = 'https://' + env.get_secondary_server() + ':' + env.get_port() + env.get_base_url() + env.get_api_version() + '/carrier/' + env.get_spid() + '/measurement'
+          daemonLogHandler.debug('[' + t.name + '] - Sending Measure data to [' + send_measure_url + '].')
+          req = requests.post(send_measure_url, data=json.dumps(measures), headers={"Content-Type": "application/json"}, verify=False, timeout=5)
+          if req.status_code != 200:
+            daemonLogHandler.error('[' + t.name + '] - Received wrong http status [' + str(req.status_code) + ']')
+            daemonLogHandler.error('[' + t.name + '] - Failed to send Measure data to Server.')
+          else:
+            daemonLogHandler.debug('[' + t.name + '] - Successed Sent Measure data to Server')
+        except Exception as e:
+          daemonLogHandler.debug('[' + t.name + '] - Send Measure Exception: ' + str(e))
+          daemonLogHandler.error('[' + t.name + '] - Failed to send measures to Server.')
+      daemonLogHandler.debug('[' + t.name + '] - Finished measures for ' + site + ' site.')
+
     daemonLogHandler.info('['+t.name+'] - Thread will sleep for the amount of seconds defined in the measure_interval parameter['+str(env.get_measure_interval())+']')
     timer = 0
     while timer <= env.get_measure_interval():
@@ -419,7 +436,8 @@ def main():
   daemonLogHandler.setLevel(eval(env.get_log_level()))
   daemonLogHandler.debug('Loaded Parameters:')
   daemonLogHandler.debug('SPID: ' + env.get_spid())
-  daemonLogHandler.debug('Server: ' + env.get_primary_server())
+  daemonLogHandler.debug('Primary Server: ' + env.get_primary_server())
+  daemonLogHandler.debug('Secondary Server: ' + env.get_secondary_server())
   daemonLogHandler.debug('Port: ' + env.get_port())
   daemonLogHandler.debug('API Version: ' + env.get_api_version())
   daemonLogHandler.debug('Base Url: ' + env.get_base_url())
