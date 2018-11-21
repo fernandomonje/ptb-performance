@@ -9,6 +9,7 @@
 # Data Modificacao...: 18/09/2018                                                             #
 #                                                                                             #
 #=============================================================================================#
+PYTHON_BIN="/bin/python2.7"
 function stop() {
 
   echo "Stopping ptb-measure-client.pyc ..."
@@ -92,7 +93,7 @@ function start() {
   fi
 }
 
-DAEMON_BIN='python /home/fcardoso/ptb-performance/client/ptb-measure-client.pyc &'
+DAEMON_BIN="${PYTHON_BIN} /home/fcardoso/ptb-performance/client/ptb-measure-client.pyc &"
 
 
 case $1 in
